@@ -1,423 +1,647 @@
-#include<stdio.h>
-#include<conio.h>
-#include<windows.h>
+#include "windows.h"
 
-struct Date{
-    int dd;
-    int mm;
-    int yy;
-};
-struct Date date;
+#include <iostream>
 
-struct Remainder{
-    int dd;
-    int mm;
-    char note[50];
-};
-struct Remainder R;
+#include <string>
 
+#include <ctime>
 
-COORD xy = {0, 0};
+using namespace std;
 
-void gotoxy (int x, int y)
+// ******Console boilerplate ******* // 
+// required for font colors 
+#define CONSO GetConsoleScreenBufferInfo
+
+#define GREEN   10
+
+#define CYAN    11
+
+#define RED     12
+
+#define MAGENTA 13
+
+#define YELLOW  14
+
+#define WHITE   15
+
+void* h = ::GetStdHandle((DWORD)-11);
+
+CONSOLE_SCREEN_BUFFER_INFO csbiInfo;
+
+int attr = CONSO(h, &csbiInfo);
+
+void setTextColor(int color)
 {
-        xy.X = x; xy.Y = y; // X and Y coordinates
-        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), xy);
+
+  SetConsoleTextAttribute(h, color);
+
 }
 
-//This will set the forground color for printing in a console window.
-void SetColor(int ForgC)
+void setCursor(int row, int col)
 {
-     WORD wColor;
-     //We will need this handle to get the current background attribute
-     HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-     CONSOLE_SCREEN_BUFFER_INFO csbi;
 
-     //We use csbi for the wAttributes word.
-     if(GetConsoleScreenBufferInfo(hStdOut, &csbi))
-     {
-        //Mask out all but the background attribute, and add in the forgournd color
-          wColor = (csbi.wAttributes & 0xF0) + (ForgC & 0x0F);
-          SetConsoleTextAttribute(hStdOut, wColor);
-     }
-     return;
+  COORD coord = {col, row};
+
+  SetConsoleCursorPosition(h, coord);
+
 }
 
-void ClearColor(){
-    SetColor(15);
-}
+// ******Project Starts Here ******* // 
+// ******function declarations  **** // 
+void showAppName();
 
-void ClearConsoleToColors(int ForgC, int BackC)
+void getInput(BOOL);
+
+BOOL checkLeap();
+
+BOOL printCalendar(int);
+
+void printAppointments();
+
+void pause();
+
+int getNumber();
+
+// ********************************** // 
+// ****variables for the project  *** // 
+int day, month, year, appointmentDay;
+
+string appointmentText;
+
+// ********************************** // 
+int main(void)
 {
-     WORD wColor = ((BackC & 0x0F) << 4) + (ForgC & 0x0F);
-     //Get the handle to the current output buffer...
-     HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-     //This is used to reset the carat/cursor to the top left.
-     COORD coord = {0, 0};
-     //A return value... indicating how many chars were written
-     //   not used but we need to capture this since it will be
-     //   written anyway (passing NULL causes an access violation).
-     DWORD count;
 
-     //This is a structure containing all of the console info
-     // it is used here to find the size of the console.
-     CONSOLE_SCREEN_BUFFER_INFO csbi;
-     //Here we will set the current color
-     SetConsoleTextAttribute(hStdOut, wColor);
-     if(GetConsoleScreenBufferInfo(hStdOut, &csbi))
-     {
-          //This fills the buffer with a given character (in this case 32=space).
-          FillConsoleOutputCharacter(hStdOut, (TCHAR) 32, csbi.dwSize.X * csbi.dwSize.Y, coord, &count);
+  setTextColor(WHITE);
 
-          FillConsoleOutputAttribute(hStdOut, csbi.wAttributes, csbi.dwSize.X * csbi.dwSize.Y, coord, &count );
-          //This will set our cursor position for the next print statement.
-          SetConsoleCursorPosition(hStdOut, coord);
-     }
-     return;
+menu:
+  // show the app logo 
+  showAppName();
+
+  setCursor(3, 20);
+
+  // show the options menu 
+  cout << "Pick a menu";
+
+  setCursor(5, 20);
+
+  cout << "1. CHECK LEAP YEAR";
+
+  setCursor(7, 20);
+
+  cout << "2. PRINT CALENDAR";
+
+  setCursor(9, 20);
+
+  cout << "3. ADD APPOINTMENT";
+
+  setCursor(11, 20);
+
+  cout << "4. Quit";
+
+  setCursor(13, 20);
+
+  cout << "Choice [1, 2, 3, 4]? ";
+
+  int choice = getNumber();
+
+  switch (choice)
+  {
+
+    // leap year check 
+  case 1:
+    {
+
+      // get the year to be checked 
+      getInput(0);
+
+      setCursor(5, 20);
+
+      cout << "Result is: ";
+
+      if(checkLeap())
+      {
+
+        cout << "Year is leap!";
+
+      }
+
+      else 
+      {
+
+        cout << "Year is NOT leap. . .";
+
+      }
+
+      setCursor(7, 20);
+
+      cout << "Done. Press any key...";
+
+      // pause so that the user 
+      // can see the message 
+      pause();
+
+      goto menu;
+
+    }
+
+    // show calendar 
+  case 2:
+    {
+
+    getmon:
+      // get month, year from the user 
+      getInput(1);
+
+      // remove appointments 
+      appointmentDay = -1;
+
+      // print calendar 
+      if(!printCalendar(8))
+      {
+
+        // if it fails get a date again 
+        setCursor(23, 20);
+
+        setTextColor(RED);
+
+        cout << "Calendar dates bad. ";
+
+        cout << "Enter again...";
+
+        // pause so that the user 
+        // can see the message 
+        pause();
+
+        setTextColor(WHITE);
+
+        goto getmon;
+
+      }
+
+      else 
+      {
+
+        setCursor(23, 20);
+
+        cout<<"Done. Press any key...";
+
+        // pause so that the user 
+        // can see the message 
+        pause();
+
+        goto menu;
+
+      }
+
+    }
+
+    // schedule an appointment 
+  case 3:
+    {
+
+    getday:
+      // get the date, month and year 
+      getInput(1);
+
+      setCursor(7, 20);
+
+      cout << "Enter day: ";
+
+      appointmentDay = getNumber();
+
+      setCursor(9, 20);
+
+      // get the appointment text 
+      cout << "Enter text[25-chars]:";
+
+      getline(cin, appointmentText);
+
+      // trim to 25 chars 
+      if(appointmentText.size() > 25)
+      {
+
+        appointmentText.erase(25);
+
+      }
+
+      showAppName();
+
+      // print calendar 
+      if(printCalendar(4))
+      {
+
+        // show appointments 
+        printAppointments();
+
+        setCursor(23, 20);
+
+        cout <<"Done. Press any key...";
+
+        pause();
+
+      }
+
+      else 
+      {
+
+        // if errors, ask dates again 
+        setCursor(23, 20);
+
+        setTextColor(RED);
+
+        cout << "Calendar dates bad. ";
+
+        cout << "Enter again...";
+
+        pause();
+
+        setTextColor(WHITE);
+
+        goto getday;
+
+      }
+
+      goto menu;
+
+    }
+
+  case 0:
+    {
+
+      goto menu;
+
+    }
+
+  default:
+    break;
+
+  }
+
+  // reset console settings so that 
+  // the console returns back to 
+  // the default state 
+  SetConsoleTextAttribute(
+  h, csbiInfo.wAttributes);
+
+  return 0;
+
 }
 
-void SetColorAndBackground(int ForgC, int BackC)
+// ********************************** // 
+void showAppName()
 {
-     WORD wColor = ((BackC & 0x0F) << 4) + (ForgC & 0x0F);;
-     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), wColor);
-     return;
-}
 
-int check_leapYear(int year){ //checks whether the year passed is leap year or not
-    if(year % 400 == 0 || (year % 100!=0 && year % 4 ==0))
-       return 1;
-    return 0;
-}
+  system("cls");
 
-void increase_month(int *mm,  int *yy){ //increase the month by one
-    ++*mm;
-    if(*mm > 12){
-        ++*yy;
-        *mm = *mm - 12;
-    }
-}
+  setCursor(1, 25);
 
-void decrease_month(int *mm,  int *yy){ //decrease the month by one
-    --*mm;
-    if(*mm < 1){
-        --*yy;
-        if(*yy<1600){
-            printf("No record available");
-            return;
-        }
-        *mm = *mm + 12;
-    }
-}
+  cout << "HOVEN CALENDAR APP";
 
+  setCursor(10, 3);
 
-int getNumberOfDays(int month,int year){ //returns the number of days in given month
-   switch(month){                          //and year
-      case 1 : return(31);
-      case 2 : if(check_leapYear(year)==1)
-		 return(29);
-	       else
-		 return(28);
-      case 3 : return(31);
-      case 4 : return(30);
-      case 5 : return(31);
-      case 6 : return(30);
-      case 7 : return(31);
-      case 8 : return(31);
-      case 9 : return(30);
-      case 10: return(31);
-      case 11: return(30);
-      case 12: return(31);
-      default: return(-1);
-   }
-}
+  setTextColor(GREEN);
 
-char *getName(int day){ //returns the name of the day
-   switch(day){
-      case 0 :return("Sunday");
-      case 1 :return("Monday");
-      case 2 :return("Tuesday");
-      case 3 :return("Wednesday");
-      case 4 :return("Thursday");
-      case 5 :return("Friday");
-      case 6 :return("Saturday");
-      default:return("Error in getName() module.Invalid argument passed");
-   }
-}
+  // make any logo on the left 
+  for(int x =0; x < 5; x++)
+  {
 
-void print_date(int mm, int yy){ //prints the name of month and year
-    printf("---------------------------\n");
-    gotoxy(25,6);
-    switch(mm){
-        case 1: printf("January"); break;
-        case 2: printf("February"); break;
-        case 3: printf("March"); break;
-        case 4: printf("April"); break;
-        case 5: printf("May"); break;
-        case 6: printf("June"); break;
-        case 7: printf("July"); break;
-        case 8: printf("August"); break;
-        case 9: printf("September"); break;
-        case 10: printf("October"); break;
-        case 11: printf("November"); break;
-        case 12: printf("December"); break;
-    }
-    printf(" , %d", yy);
-    gotoxy(20,7);
-    printf("---------------------------");
-}
-int getDayNumber(int day,int mon,int year){ //returns the day number
-    int res = 0, t1, t2, y = year;
-    year = year - 1600;
-    while(year >= 100){
-        res = res + 5;
-        year = year - 100;
-    }
-    res = (res % 7);
-    t1 = ((year - 1) / 4);
-    t2 = (year-1)-t1;
-    t1 = (t1*2)+t2;
-    t1 = (t1%7);
-    res = res + t1;
-    res = res%7;
-    t2 = 0;
-    for(t1 = 1;t1 < mon; t1++){
-        t2 += getNumberOfDays(t1,y);
-    }
-    t2 = t2 + day;
-    t2 = t2 % 7;
-    res = res + t2;
-    res = res % 7;
-    if(y > 2000)
-        res = res + 1;
-    res = res % 7;
-    return res;
-}
+    setCursor(2 + x, 3 + x);
 
-char *getDay(int dd,int mm,int yy){
-    int day;
-    if(!(mm>=1 && mm<=12)){
-        return("Invalid month value");
-    }
-    if(!(dd>=1 && dd<=getNumberOfDays(mm,yy))){
-        return("Invalid date");
-    }
-    if(yy>=1600){
-        day = getDayNumber(dd,mm,yy);
-        day = day%7;
-        return(getName(day));
-    }else{
-        return("Please give year more than 1600");
-    }
-}
+    cout << "//";
 
-int checkNote(int dd, int mm){
-    FILE *fp;
-    fp = fopen("note.dat","rb");
-    if(fp == NULL){
-        printf("Error in Opening the file");
-    }
-    while(fread(&R,sizeof(R),1,fp) == 1){
-        if(R.dd == dd && R.mm == mm){
-            fclose(fp);
-            return 1;
-        }
-    }
-    fclose(fp);
-    return 0;
-}
+    setCursor(2 + x, 12 - x);
 
-void printMonth(int mon,int year,int x,int y){ //prints the month with all days
-    int nod, day, cnt, d = 1, x1 = x, y1 = y, isNote = 0;
-    if(!(mon>=1 && mon<=12)){
-        printf("INVALID MONTH");
-        getch();
-        return;
-    }
-    if(!(year>=1600)){
-        printf("INVALID YEAR");
-        getch();
-        return;
-    }
-    gotoxy(20,y);
-    print_date(mon,year);
-    y += 3;
-    gotoxy(x,y);
-    printf("S   M   T   W   T   F   S   ");
-    y++;
-    nod = getNumberOfDays(mon,year);
-    day = getDayNumber(d,mon,year);
-    switch(day){ //locates the starting day in calender
-        case 0 :
-            x=x;
-            cnt=1;
-            break;
-        case 1 :
-            x=x+4;
-            cnt=2;
-            break;
-        case 2 :
-            x=x+8;
-            cnt=3;
-            break;
-        case 3 :
-            x=x+12;
-            cnt=4;
-            break;
-        case 4 :
-            x=x+16;
-            cnt=5;
-            break;
-        case 5 :
-            x=x+20;
-            cnt=6;
-            break;
-        case 6 :
-            x=x+24;
-            cnt=7;
-            break;
-        default :
-            printf("INVALID DATA FROM THE getOddNumber()MODULE");
-            return;
-    }
-    gotoxy(x,y);
-    if(cnt == 1){
-        SetColor(12);
-    }
-    if(checkNote(d,mon)==1){
-            SetColorAndBackground(15,12);
-    }
-    printf("%02d",d);
-    SetColorAndBackground(15,1);
-    for(d=2;d<=nod;d++){
-        if(cnt%7==0){
-            y++;
-            cnt=0;
-            x=x1-4;
-        }
-        x = x+4;
-        cnt++;
-        gotoxy(x,y);
-        if(cnt==1){
-            SetColor(12);
-        }else{
-            ClearColor();
-        }
-        if(checkNote(d,mon)==1){
-            SetColorAndBackground(15,12);
-        }
-        printf("%02d",d);
-        SetColorAndBackground(15,1);
-    }
-    gotoxy(8, y+2);
-    SetColor(14);
-    printf("Press 'n'  to Next, Press 'p' to Previous and 'q' to Quit");
-    gotoxy(8,y+3);
-    printf("Red Background indicates the NOTE, Press 's' to see note: ");
-    ClearColor();
-}
+    cout << "//";
 
-void AddNote(){
-    FILE *fp;
-    fp = fopen("note.dat","ab+");
-    system("cls");
-    gotoxy(5,7);
-    printf("Enter the date(DD/MM): ");
-    scanf("%d%d",&R.dd, &R.mm);
-    gotoxy(5,8);
-    printf("Enter the Note(50 character max): ");
-    fflush(stdin);
-    scanf("%[^\n]",R.note);
-    if(fwrite(&R,sizeof(R),1,fp)){
-        gotoxy(5,12);
-        puts("Note is saved sucessfully");
-        fclose(fp);
-    }else{
-        gotoxy(5,12);
-        SetColor(12);
-        puts("\aFail to save!!\a");
-        ClearColor();
-    }
-    gotoxy(5,15);
-    printf("Press any key............");
-    getch();
-    fclose(fp);
-}
+  }
 
-void showNote(int mm){
-    FILE *fp;
-    int i = 0, isFound = 0;
-    system("cls");
-    fp = fopen("note.dat","rb");
-    if(fp == NULL){
-        printf("Error in opening the file");
-    }
-    while(fread(&R,sizeof(R),1,fp) == 1){
-        if(R.mm == mm){
-            gotoxy(10,5+i);
-            printf("Note %d Day = %d: %s", i+1, R.dd,  R.note);
-            isFound = 1;
-            i++;
-        }
-    }
-    if(isFound == 0){
-        gotoxy(10,5);
-        printf("This Month contains no note");
-    }
-    gotoxy(10,7+i);
-    printf("Press any key to back.......");
-    getch();
+  setCursor(6, 6);
+
+  cout << "HOVEN";
+
+  setTextColor(WHITE);
 
 }
 
-int main(){
-    ClearConsoleToColors(15, 1);
-    SetConsoleTitle("Calender Project");
-    int choice;
-    char ch = 'a';
-    while(1){
-        system("cls");
-        printf("1. Find Out the Day\n");
-        printf("2. Print all the day of month\n");
-        printf("3. Add Note\n");
-        printf("4. EXIT\n");
-        printf("ENTER YOUR CHOICE : ");
-        scanf("%d",&choice);
-        system("cls");
-        switch(choice){
-            case 1:
-                printf("Enter date (DD MM YYYY) : \n");
-                scanf("%d %d %d",&date.dd,&date.mm,&date.yy);
-                printf("Day is : %s",getDay(date.dd,date.mm,date.yy));
-                printf("\nPress any key to continue......");
-                getch();
-                break;
-            case 2 :
-                printf("Enter month and year (MM YYYY) : \n");
-                scanf("%d %d",&date.mm,&date.yy);
-                system("cls");
-                while(ch!='q'){
-                    printMonth(date.mm,date.yy,20,5);
-                    ch = getch();
-                    if(ch == 'n'){
-                        increase_month(&date.mm,&date.yy);
-                        system("cls");
-                        printMonth(date.mm,date.yy,20,5);
-                    }else if(ch == 'p'){
-                        decrease_month(&date.mm,&date.yy);
-                        system("cls");
-                        printMonth(date.mm,date.yy,20,5);
-                    }else if(ch == 's'){
-                        showNote(date.mm);
-                        system("cls");
-                    }
-                }
-                break;
-            case 3:
-                AddNote();
-                break;
-            case 4 :
-                exit(0);
-        }
+// ********************************** // 
+// **** obtain month and year // 
+void getInput(BOOL monthAlso)
+{
+
+  showAppName();
+
+  setCursor(3, 20);
+
+  if(monthAlso)
+  {
+
+    cout << "Month?[1-12]: ";
+
+    month = getNumber();
+
+    month -= 1;
+
+    setCursor(5, 20);
+
+  }
+
+  cout << "Year?[1970-3000]:";
+
+  year = getNumber();
+
+  year -= 1900;
+
+}
+
+// ********************************** // 
+// **** verify the data as a date // 
+int checkDate()
+{
+
+  tm t = {0, 0, 0, day, month, year};
+
+  // mktime function validates the 
+  // combination of day, month, year 
+  // as a valid date 
+  if(mktime(&t) < 0)
+  {
+
+    return -1;
+
+  }
+
+  // error in day? return failed 
+  if(day != t.tm_mday)
+  {
+
+    return -1;
+
+  }
+
+  // error in month? return failed 
+  if(month != t.tm_mon)
+  {
+
+    return -1;
+
+  }
+
+  // error in year? return failed 
+  if(year != t.tm_year)
+  {
+
+    return -1;
+
+  }
+
+  // return day of the week 
+  // sun = 0, onwards 
+  return t.tm_wday;
+
+}
+
+// ********************************** // 
+BOOL checkLeap()
+{
+
+  day = 29;
+
+  month = 1;
+
+  return checkDate() >= 0;
+
+}
+
+// ********************************** // 
+BOOL printCalendar(int fromRow)
+{
+
+  day = 1;
+
+  // if the date is invalid 
+  // calendar should not be shown 
+  if(-1 == checkDate())
+  {
+
+    return FALSE;
+
+  }
+
+  int row = fromRow;
+
+  setCursor(row, 24);
+
+  cout << "CALENDAR for ";
+
+  cout << month + 1 << "-";
+
+  cout << year + 1900;
+
+  row += 2;
+
+  setCursor(row, 20);
+
+  cout << "Mo  Tu  We  Th  Fr  Sa  Su";
+
+  row += 2;
+
+  setCursor(row, 20);
+
+  cout << "==========================";
+
+  row += 1;
+
+  while(true)
+  {
+
+    switch(checkDate())
+    {
+
+      // mon 
+    case 1:
+      {
+
+        setCursor(row, 20);
+
+      }
+
+      break;
+
+      // tue 
+    case 2:
+      {
+
+        setCursor(row, 24);
+
+      }
+
+      break;
+
+      // wed 
+    case 3:
+      {
+
+        setCursor(row, 28);
+
+      }
+
+      break;
+
+      // thu 
+    case 4:
+      {
+
+        setCursor(row, 32);
+
+      }
+
+      break;
+
+      // fri 
+    case 5:
+      {
+
+        setCursor(row, 36);
+
+      }
+
+      break;
+
+      // sat 
+    case 6:
+      {
+
+        // cyan color for sat weekend 
+        setTextColor(CYAN);
+
+        setCursor(row, 40);
+
+      }
+
+      break;
+
+      // sun 
+    case 0:
+      {
+
+        // cyan color for sun weekend 
+        setTextColor(CYAN);
+
+        setCursor(row, 44);
+
+        // after sunday next row 
+        row += 2;
+
+      }
+
+      break;
+
+    default:
+      {
+
+        // calendar done 
+        return TRUE;
+
+      }
+
     }
-    return 0;
+
+    // yellow color for appointments 
+    if(appointmentDay >= 1)
+    {
+
+      if(appointmentDay == day)
+      {
+
+        setTextColor(YELLOW);
+
+      }
+
+      // second dummy date of 
+      // 17 used but project 
+      // must be extended to support 
+      // multiple dates 
+      if(17 == day)
+      {
+
+        setTextColor(YELLOW);
+
+      }
+
+    }
+
+    printf("%2d", day++);
+
+    setTextColor(WHITE);
+
+  }
+
+}
+
+// ********************************** // 
+void printAppointments()
+{
+
+  setTextColor(GREEN);
+
+  // print a vertical line to the 
+  // right of the calendar 
+  for(int x = 2; x < 24; x++)
+  {
+
+    setCursor(x, 48);
+
+    cout << "||";
+
+  }
+
+  setTextColor(MAGENTA);
+
+  setCursor(2, 56);
+
+  cout << "APPOINTMENTS";
+
+  setCursor(4, 52);
+
+  cout << appointmentDay;
+
+  cout << " - " << appointmentText;
+
+  setCursor(6, 52);
+
+  // dummy date of 17 also used 
+  // but project must be extended 
+  // to support multiple dates 
+  cout << "17 - for a dinner!";
+
+  setTextColor(WHITE);
+
+}
+
+// ********************************** // 
+// **** obtain a numeric input // 
+int getNumber()
+{
+
+  // best approach is to get the 
+  // input as a string and then 
+  // convert it to integer 
+  string s;
+
+  getline(cin, s);
+
+  return atoi(s.c_str());
+
+}
+
+// ********************************** // 
+// **** a dummy pause // 
+void pause()
+{
+
+  string s;
+
+  getline(cin, s);
+
 }
